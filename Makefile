@@ -1,0 +1,2 @@
+default:
+	ghc --make test
