@@ -48,8 +48,8 @@ binsFromList [] = []
 binsFromList [_] = []
 binsFromList (x:y:xs) = Range x y : binsFromList (y:xs)
 
-histWithDefault :: Ord b => [b] -> v -> Hist b v
-histWithDefault bins def = M.fromList $ zip (binsFromList bins) (repeat def)
+histWithDefaultContent :: Ord b => [b] -> v -> Hist b v
+histWithDefaultContent bins def = M.fromList $ zip (binsFromList bins) (repeat def)
 
 fillWeight :: (Ord b, Num v) => Hist b v -> b -> v -> Hist b v
 fillWeight h x w = M.adjust (w +) (Val x) h
@@ -63,3 +63,11 @@ midPoint (Val x) = x
 
 histToPoints :: (Fractional b) => Hist b v -> [(b, v)]
 histToPoints h = map (first midPoint) $ M.toList h
+
+mapBins :: Ord c => (b -> c) -> Hist b v -> Hist c v
+mapBins f = M.mapKeys (fmap f)
+
+mapContents :: (v -> w) -> Hist b v -> Hist b w
+mapContents = M.map
+
+

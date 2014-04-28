@@ -11,4 +11,5 @@ main = do
     -- print d
     let h = histWithDefault binEdges 0.0
     let h' = foldl (\m (b, v) -> fillWeight m b v) h (zip binEdges d)
-    putStrLn . printCSV $ map (\(a, b) -> [show a, show b]) $ histToPoints h'
+    let h'' = mapBins log h'
+    putStrLn . printCSV $ map (\(a, b) -> [show a, show b]) $ histToPoints h''
