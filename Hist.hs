@@ -1,11 +1,21 @@
+{-# LANGUAGE TypeOperators #-}
+
 module Hist where
 
 import Control.Arrow
 import Control.Applicative
 import qualified Data.Map as M
+import Data.Monoid
+import Data.Maybe (fromJust)
 
-data Bin a = Range a a | Val a deriving (Eq, Show)
 
+data Bin r = Range r r | Val r deriving (Eq, Show, Read)
+
+type ValUncert v = (v, v)
+
+instance Functor Bin where
+    fmap f (Range x y) = Range (f x) (f y)
+    fmap f (Val v) = Val (f v)
 
 
 -- most important part: for filling histograms
@@ -26,11 +36,7 @@ instance (Ord a) => Ord (Bin a) where
     compare (Val x) (Val y) = compare x y
 
 
-instance Functor Bin where
-    fmap f (Range x y) = Range (f x) (f y)
-    fmap f (Val v) = Val (f v)
-
-
+{-
 instance Applicative Bin where
     pure = Val
 
@@ -39,9 +45,14 @@ instance Applicative Bin where
 
     Range f g <*> Val x = Range (f x) (g x)
     Val f <*> Range x y = Range (f x) (f y)
+-}
 
 
-type Hist b v = M.Map (Bin b) v
+type Hist r v = M.Map (Bin r) v
+type Hist1D v = M.Map (Bin Double) v
+type Hist2D v = M.Map (Bin Double) v
+
+
 
 binsFromList :: [a] -> [Bin a]
 binsFromList [] = []
@@ -54,8 +65,9 @@ histWithDefaultContent bins def = M.fromList $ zip (binsFromList bins) (repeat d
 fillWeight :: (Ord b, Num v) => Hist b v -> b -> v -> Hist b v
 fillWeight h x w = M.adjust (w +) (Val x) h
 
+
 fill :: (Ord b, Num v) => Hist b v -> b -> Hist b v
-fill h x = fillWeight h x 1
+fill h x = M.adjust (1 +) (Val x) h
 
 midPoint :: (Fractional b) => Bin b -> b
 midPoint (Range x y) = (x + y)/2.0
@@ -69,5 +81,3 @@ mapBins f = M.mapKeys (fmap f)
 
 mapContents :: (v -> w) -> Hist b v -> Hist b w
 mapContents = M.map
-
-
