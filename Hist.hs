@@ -1,101 +1,72 @@
--- {-# LANGUAGE GADTs, TypeSynonymInstances #-}
-
 module Hist where
 
-import Prelude hiding (foldr)
-
-import Data.Foldable
-import Data.Traversable
+import Control.Arrow
 import Control.Applicative
+import qualified Data.Map as M
 
-data Hist b v = HLeaf v | HNode (Hist b v) b (Hist b v)
-    deriving (Show, Eq, Ord)
-
-instance Functor (Hist b) where
-    fmap f (HLeaf x) = HLeaf $ f x
-    fmap f (HNode h b h') = HNode (fmap f h) b (fmap f h')
-
-instance Foldable (Hist b) where
-    foldr f x (HLeaf v) = f v x
-    foldr f x (HNode h _ h') = foldr f (foldr f x h) h'
-
-instance Traversable (Hist b) where
-    traverse f (HLeaf x) = fmap HLeaf (f x)
-    traverse f (HNode h b h') = flip HNode b <$> traverse f h <*> traverse f h'
-
-
-fromList :: [(b,v)] -> Hist b v
-fromList 0 (x:xs) = HLeaf x
-fromList n xs 
-
-binEdges :: Hist b v -> [b]
-binEdges (HNode (HLeaf
-
-toList :: b => Hist b v -> [(b,v)]
-toList = foldr (:) []
-
-{-
-instance Applicative (Hist b) where
-    pure v = HLeaf v
-    h <*> h' = 
+data Bin a = Range a a | Val a deriving (Eq, Show)
 
 
 
--- histograms are parameterized by the binning parameter (b) and the
--- content parameter (v)
-class Hist h where
-    extractH :: Ord b => h b v -> b -> v
-    fillH :: (Ord b, Num v) => h b v -> b -> v -> h b v
+-- most important part: for filling histograms
+instance (Ord a) => Ord (Bin a) where
+    compare (Range w x) (Range y z) = let c = compare w y in
+                                        case c of
+                                            EQ -> compare x z
+                                            _ -> c
 
-class Bin b where
-    containsB :: Ord a => b a v -> a -> Bool
-    fillB :: Num v => b a v -> v -> b a v
+    compare (Range x y) (Val z) = case (compare z x, compare z y) of
+                                    (GT, LT) -> EQ
+                                    (EQ, LT) -> EQ
+                                    (LT, _) -> LT
+                                    _ -> GT
 
+    compare v@(Val _) r@(Range _ _) = compare r v
 
-data Interval a = Interval a a deriving Show
-
-instance Eq a => Eq (Interval a) where
-    (Interval w x) == (Interval y z) = w == y && x == z
-
-instance Ord a => Ord (Interval a) where
-    (Interval w x) `compare` (Interval y z) = w `compare` y <> x `compare` z
+    compare (Val x) (Val y) = compare x y
 
 
-data HistBin b v = HistBin {
-    interval :: Interval b,
-    value :: v
-    } deriving (Show, Ord, Eq)
-
-instance Bin HistBin where
-    containsB (HistBin (Interval xmin xmax) _) x = xmin <= x && x < xmax
-
-    fillB (HistBin b w) wgt = HistBin b (w+wgt)
+instance Functor Bin where
+    fmap f (Range x y) = Range (f x) (f y)
+    fmap f (Val v) = Val (f v)
 
 
-type Histogram b v = [HistBin b v]
+-- not sure why I need this.
+instance Applicative Bin where
+    pure = Val
 
-fromListWithDefault :: Ord b => v -> [b] -> Histogram b v
-fromListWithDefault _ [] = []
-fromListWithDefault _ [_] = []
-fromListWithDefault def (x:x':xs) = HistBin (Interval x x') def : fromListWithDefault def (x':xs)
+    Range f g <*> Range x y = Range (f x) (g y)
+    Val f <*> Val x = Val (f x)
 
-fillBIfContains :: (Bin b, Ord a, Num v) => [b a v] -> a -> v -> [b a v]
-fillBIfContains (b:bs) x wgt = if b `containsB` x
-                            then b `fillB` wgt : bs
-                            else b : fillBIfContains bs x wgt
-fillBIfContains [] _ _ = []
+    Range f g <*> Val x = Range (f x) (g x)
+    Val f <*> Range x y = Range (f x) (f y)
 
 
-instance Hist Histogram where
-    fillH (bs) x wgt = fillBIfContains bs x wgt
+type Hist b v = M.Map (Bin b) v
 
-    extractH (b:bs) x = if b `containsB` x
-                                        then value b
-                                        else extractH bs x
+binsFromList :: [a] -> [Bin a]
+binsFromList [] = []
+binsFromList [_] = []
+binsFromList (x:y:xs) = Range x y : binsFromList (y:xs)
 
-    extractH [] _ = error "no bin containing value found in histogram."
+histWithDefaultContent :: Ord b => [b] -> v -> Hist b v
+histWithDefaultContent bins def = M.fromList $ zip (binsFromList bins) (repeat def)
 
+fillWeight :: (Ord b, Num v) => Hist b v -> b -> v -> Hist b v
+fillWeight h x w = M.adjust (w +) (Val x) h
 
-th1d :: [Double] -> Histogram Double (U Double)
-th1d xs = fromListWithDefault (U 0.0 0.0) (minBound:xs ++ maxBound)
--}
+fill :: (Ord b, Num v) => Hist b v -> b -> Hist b v
+fill h x = fillWeight h x 1
+
+midPoint :: (Fractional b) => Bin b -> b
+midPoint (Range x y) = (x + y)/2.0
+midPoint (Val x) = x
+
+histToPoints :: (Fractional b) => Hist b v -> [(b, v)]
+histToPoints h = map (first midPoint) $ M.toList h
+
+mapBins :: Ord c => (b -> c) -> Hist b v -> Hist c v
+mapBins f = M.mapKeys (fmap f)
+
+mapContents :: (v -> w) -> Hist b v -> Hist b w
+mapContents = M.map
