@@ -1,10 +1,7 @@
--- {-# LANGUAGE GADTs #-}
-
 module Uncertain where
 
--- import Control.Applicative
-
 data U a = U a a
+    deriving (Eq, Ord)
 
 instance Show a => Show (U a) where
     show (U x y ) = show x ++ " +/- " ++ show y
