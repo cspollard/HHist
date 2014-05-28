@@ -1,8 +1,44 @@
-{-# LANGUAGE GADTs #-}
+-- {-# LANGUAGE GADTs, TypeSynonymInstances #-}
 
 module Hist where
 
-import Data.Monoid ((<>))
+import Prelude hiding (foldr)
+
+import Data.Foldable
+import Data.Traversable
+import Control.Applicative
+
+data Hist b v = HLeaf v | HNode (Hist b v) b (Hist b v)
+    deriving (Show, Eq, Ord)
+
+instance Functor (Hist b) where
+    fmap f (HLeaf x) = HLeaf $ f x
+    fmap f (HNode h b h') = HNode (fmap f h) b (fmap f h')
+
+instance Foldable (Hist b) where
+    foldr f x (HLeaf v) = f v x
+    foldr f x (HNode h _ h') = foldr f (foldr f x h) h'
+
+instance Traversable (Hist b) where
+    traverse f (HLeaf x) = fmap HLeaf (f x)
+    traverse f (HNode h b h') = flip HNode b <$> traverse f h <*> traverse f h'
+
+
+fromList :: [(b,v)] -> Hist b v
+fromList 0 (x:xs) = HLeaf x
+fromList n xs 
+
+binEdges :: Hist b v -> [b]
+binEdges (HNode (HLeaf
+
+toList :: b => Hist b v -> [(b,v)]
+toList = foldr (:) []
+
+{-
+instance Applicative (Hist b) where
+    pure v = HLeaf v
+    h <*> h' = 
+
 
 
 -- histograms are parameterized by the binning parameter (b) and the
@@ -36,9 +72,9 @@ instance Bin HistBin where
     fillB (HistBin b w) wgt = HistBin b (w+wgt)
 
 
-data Histogram b v = Histogram [HistBin b v]
+type Histogram b v = [HistBin b v]
 
-fromListWithDefault :: Ord b => v -> [b] -> [HistBin b v]
+fromListWithDefault :: Ord b => v -> [b] -> Histogram b v
 fromListWithDefault _ [] = []
 fromListWithDefault _ [_] = []
 fromListWithDefault def (x:x':xs) = HistBin (Interval x x') def : fromListWithDefault def (x':xs)
@@ -51,10 +87,15 @@ fillBIfContains [] _ _ = []
 
 
 instance Hist Histogram where
-    fillH (Histogram bs) x wgt = Histogram $ fillBIfContains bs x wgt
+    fillH (bs) x wgt = fillBIfContains bs x wgt
 
-    extractH (Histogram (b:bs)) x = if b `containsB` x
+    extractH (b:bs) x = if b `containsB` x
                                         then value b
-                                        else extractH (Histogram bs) x
+                                        else extractH bs x
 
-    extractH (Histogram []) _ = error "no bin containing value found in histogram."
+    extractH [] _ = error "no bin containing value found in histogram."
+
+
+th1d :: [Double] -> Histogram Double (U Double)
+th1d xs = fromListWithDefault (U 0.0 0.0) (minBound:xs ++ maxBound)
+-}
