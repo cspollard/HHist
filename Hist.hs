@@ -31,6 +31,7 @@ instance Functor Bin where
     fmap f (Val v) = Val (f v)
 
 
+-- not sure why I need this.
 instance Applicative Bin where
     pure = Val
 
@@ -69,5 +70,3 @@ mapBins f = M.mapKeys (fmap f)
 
 mapContents :: (v -> w) -> Hist b v -> Hist b w
 mapContents = M.map
-
-
