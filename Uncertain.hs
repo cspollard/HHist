@@ -1,10 +1,25 @@
 module Uncertain where
 
+-- this can be made much more general..
+-- second argument should actually be a pdf, but...
+
+-- an uncertain value:
+-- - the value
+-- - its uncertainty
 data U a = U a a
     deriving (Eq, Ord)
 
 instance Show a => Show (U a) where
-    show (U x y ) = show x ++ " +/- " ++ show y
+    show (U x y) = show x ++ " +/- " ++ show y
+
+sqr :: Num a => a -> a
+sqr a = a*a
+
+quadsum :: Floating a => a -> a -> a
+quadsum x y = sqrt $ sqr x + sqr y
+
+pois :: Floating a => a -> U a
+pois x = U x $ sqrt x
 
 constU :: Num a => a -> U a
 constU x = U x 0
@@ -16,12 +31,6 @@ x +- dx = U x dx
 infix 0 ><
 (><) :: Num a => (a -> a) -> (a -> a) -> U a -> U a
 (f >< f') (U x x') = U (f x) (abs $ x' * f' x)
-
-sqr :: Num a => a -> a
-sqr a = a*a
-
-quadsum :: Floating a => a -> a -> a
-quadsum x y = sqrt $ sqr x + sqr y
 
 instance Floating a => Num (U a) where
     fromInteger = constU . fromInteger
