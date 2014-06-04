@@ -1,15 +1,8 @@
 module Main where
 
-import Hist
-import Text.CSV
+import Data.Hist
+import Data.Uncertain
 
 main :: IO ()
 main = do
-    let binEdges = map ((*) (2*pi) . flip (/) 100) [1..100] :: [Double]
-    -- print binEdges
-    let d = map cos binEdges
-    -- print d
-    let h = histWithDefault binEdges 0.0
-    let h' = foldl (\m (b, v) -> fillWeight m b v) h (zip binEdges d)
-    let h'' = mapBins log h'
-    putStrLn . printCSV $ map (\(a, b) -> [show a, show b]) $ histToPoints h''
+    print . fmap pois $ fromAscList [1.0, 2.0] [0.0, 3.0, 6.0]
