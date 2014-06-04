@@ -1,4 +1,4 @@
-module Uncertain where
+module Data.Uncertain where
 
 -- this can be made much more general..
 -- second argument should actually be a pdf, but...
