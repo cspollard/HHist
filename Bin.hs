@@ -1,26 +1,28 @@
 module Bin where
 
-data Bin b v = Bin b v b
+import Data.Monoid ((<>))
 
-instance Functor (Bin b) where
-    fmap f (Bin l x h ) = Bin l (f x) h
-
-instance (Ord b) => Ord (Bin b v b) where
+data Bin b = Range b b | Val b
+    deriving (Eq, Show)
 
 -- most important part: for filling histograms
 instance (Ord a) => Ord (Bin a) where
-    compare (Range w x) (Range y z) = let c = compare w y in
-                                        case c of
-                                            EQ -> compare x z
-                                            _ -> c
+    compare (Range w x) (Range y z) = compare w y <> compare x z
 
-    compare (Range x y) (Val z) = case (compare z x, compare z y) of
-                                    (GT, LT) -> EQ
-                                    (EQ, LT) -> EQ
-                                    (LT, _) -> LT
-                                    _ -> GT
 
-    compare v@(Val _) r@(Range _ _) = compare r v
+    compare (Range x y) (Val z) =
+        case (compare z x, compare z y) of
+            (GT, LT) -> EQ
+            (EQ, LT) -> EQ
+            (LT, _) -> LT
+            _ -> GT
+
+
+    compare v@(Val _) r@(Range _ _) =
+        case compare r v of
+            EQ -> EQ
+            GT -> LT
+            LT -> GT
 
     compare (Val x) (Val y) = compare x y
 
